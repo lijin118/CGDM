@@ -15,24 +15,24 @@ from data_loader.folder import ImageFolder_ind
 warnings.filterwarnings('ignore')
 
 # Training settings
-parser = argparse.ArgumentParser(description='DomainNet Classification')
+parser = argparse.ArgumentParser(description='ImageClef Classification')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=32, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=200, metavar='N', help='number of epochs to train (default: 20)')
-parser.add_argument('--lr', type=float, default=0.001, metavar='LR', help='learning rate (default: 0.0003)')
+parser.add_argument('--lr', type=float, default=0.0003, metavar='LR', help='learning rate (default: 0.0003)')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
 parser.add_argument('--optimizer', type=str, default='momentum', metavar='OP', help='the name of optimizer')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
-parser.add_argument('--seed', type=int, default=1, metavar='S', help='random seed (default: 1)')
+parser.add_argument('--seed', type=int, default=100, metavar='S', help='random seed (default: 1)')
 parser.add_argument('--log-interval', type=int, default=100, metavar='N',help='how many batches to wait before logging training status')
 parser.add_argument('--num_k', type=int, default=4, metavar='K', help='how many steps to repeat the generator update')
 parser.add_argument('--num_layer', type=int, default=2, metavar='K', help='how many layers for classifier')
-parser.add_argument('--train_path', type=str, default='/home/dzk/DomainNet/', metavar='B',
+parser.add_argument('--train_path', type=str, default='dataset/clef/i', metavar='B',
                     help='directory of source datasets')
-parser.add_argument('--val_path', type=str, default='/home/dzk/DomainNet/', metavar='B',
+parser.add_argument('--val_path', type=str, default='dataset/clef/p', metavar='B',
                     help='directory of target datasets')
-parser.add_argument('--class_num', type=int, default='345', metavar='B', help='The number of classes')
-parser.add_argument('--gmn_N', type=int, default='345', metavar='B', help='The number of classes to calulate gradient similarity')
+parser.add_argument('--class_num', type=int, default='12', metavar='B', help='The number of classes')
+parser.add_argument('--gmn_N', type=int, default='12', metavar='B', help='The number of classes to calulate gradient similarity')
 parser.add_argument('--resnet', type=str, default='50', metavar='B', help='which resnet 18,50,101,152,200')
 parser.add_argument('--gpu', type=int, default=0)
 
@@ -43,13 +43,13 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
-source = 'real'
-traget = 'sketch'
+source = 'c'
+traget = 'i'
 
-print(source," to ", traget)
+print(source, " to ", traget)
 
-args.train_path = "/home/dzk/DomainNet/%s/" % source
-args.val_path = "/home/dzk/DomainNet/%s/" % traget
+args.train_path = "dataset/clef/%s/" % source
+args.val_path = "dataset/clef/%s/" % traget
 
 train_path = args.train_path
 val_path = args.val_path
@@ -58,18 +58,19 @@ num_layer = args.num_layer
 batch_size = args.batch_size
 lr = args.lr
 
+
 data_transforms = {
     train_path: transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(),
-        transforms.CenterCrop(224),
+        transforms.RandomCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     val_path: transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(),
-        transforms.CenterCrop(224),
+        transforms.RandomCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
@@ -83,6 +84,7 @@ data_loader_T_no_shuffle = torch.utils.data.DataLoader(
             shuffle=False,
             drop_last=False,
             num_workers=4)
+
 
 dset_sizes = {x: len(dsets[x]) for x in [train_path, val_path]}
 dset_classes = dsets[train_path].classes
@@ -102,17 +104,19 @@ dataset_test = test_loader.load_data()
 
 option = 'resnet' + args.resnet
 G = ResBottle(option)
-F1 = ResClassifier(num_classes=345, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
-F2 = ResClassifier(num_classes=345, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
+F1 = ResClassifier(num_classes=12, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
+F2 = ResClassifier(num_classes=12, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
 F1.apply(weights_init)
 F2.apply(weights_init)
+
+start = -1
 
 if args.cuda:
     G.cuda()
     F1.cuda()
     F2.cuda()
 if args.optimizer == 'momentum':
-    optimizer_g = optim.SGD(list(G.features.parameters()), lr=args.lr/10, weight_decay=0.0005)
+    optimizer_g = optim.SGD(list(G.parameters()), lr=args.lr/10, weight_decay=0.0005)
     optimizer_f = optim.SGD(list(F1.parameters()) + list(F2.parameters()), momentum=0.9, lr=args.lr,
                             weight_decay=0.0005)
 elif args.optimizer == 'adam':
@@ -122,13 +126,12 @@ else:
     optimizer_g = optim.Adadelta(G.features.parameters(), lr=args.lr, weight_decay=0.0005)
     optimizer_f = optim.Adadelta(list(F1.parameters()) + list(F2.parameters()), lr=args.lr, weight_decay=0.0005)
 
-start = 0
 
 def train(num_epoch):
     
     criterion = nn.CrossEntropyLoss()
-    criterion_w = Weighted_CrossEntropy 
-
+    criterion_w = Weighted_CrossEntropy
+    #CrossEntropyLabelSmooth(num_classes = 12, epsilon=0.1).da()
     for ep in range(num_epoch):
         
         since = time.time()
@@ -151,6 +154,7 @@ def train(num_epoch):
             if ep > start:
                 pseudo_label_t = mem_label[index_t]
 
+            #print(pseudo_label_t)
 
             if args.cuda:
                 data_s, label_s = data_s.cuda(), label_s.cuda()
@@ -175,8 +179,11 @@ def train(num_epoch):
             output_t1_s = F.softmax(output_t1)
             output_t2_s = F.softmax(output_t2)
 
-            entropy_loss = Entropy_both(output_t1_s)
-            entropy_loss += Entropy_both(output_t2_s)
+            entropy_loss = Entropy_inf(output_t1_s)
+            entropy_loss += Entropy_inf(output_t2_s)
+
+            # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
+            # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))
 
             if ep > start:
                 supervision_loss = criterion_w(output_t1, pseudo_label_t) + criterion_w(output_t2, pseudo_label_t)
@@ -206,8 +213,10 @@ def train(num_epoch):
             loss1 = criterion(output_s1, label_s)
             loss2 = criterion(output_s2, label_s)
 
-            entropy_loss = Entropy_both(output_t1_s)
-            entropy_loss += Entropy_both(output_t2_s)
+            entropy_loss = Entropy_inf(output_t1_s)
+            entropy_loss += Entropy_inf(output_t2_s)
+            # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
+            # entropy_loss -= torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
 
             loss_dis = discrepancy(output_t1,output_t2)
 
@@ -231,13 +240,16 @@ def train(num_epoch):
                 output_t1_s = F.softmax(output_t1)
                 output_t2_s = F.softmax(output_t2)
 
-                entropy_loss = Entropy_both(output_t1_s)
-                entropy_loss += Entropy_both(output_t2_s)
+                entropy_loss = Entropy_inf(output_t1_s)
+                entropy_loss += Entropy_inf(output_t2_s)
+
+                # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
+                # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))
 
                 loss_dis = discrepancy(output_t1,output_t2)
                 #print(pseudo_label_t)
                 if ep > start:
-                    gmn_loss = gradient_mathing_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
+                    gmn_loss = gradient_discrepancy_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
                 else: 
                     gmn_loss = 0
 
@@ -273,6 +285,7 @@ def test(epoch):
         if args.cuda:
             img = data['T']
             label = data['T_label']
+            index = data['T_index']
             img, label = img.cuda(), label.cuda()
         img, label = Variable(img, volatile=True), Variable(label)
         with torch.no_grad():
@@ -296,8 +309,8 @@ def test(epoch):
         epoch, test_loss, correct_add, size, 100. * float(correct_add) / size))
     avg = []
     for i in dset_classes:
-        # print('\t{}: [{}/{}] ({:.6f}%)'.format(i, classes_acc[i][0], classes_acc[i][1],
-        #                                        100. * classes_acc[i][0] / classes_acc[i][1]))
+        print('\t{}: [{}/{}] ({:.6f}%)'.format(i, classes_acc[i][0], classes_acc[i][1],
+                                               100. * classes_acc[i][0] / classes_acc[i][1]))
         avg.append(100. * float(classes_acc[i][0]) / classes_acc[i][1])
     print('\taverage:', np.average(avg))
     for i in dset_classes:
@@ -306,4 +319,3 @@ def test(epoch):
 
 
 train(args.epochs + 1)
-

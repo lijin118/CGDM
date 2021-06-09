@@ -15,7 +15,7 @@ from data_loader.folder import ImageFolder_ind
 warnings.filterwarnings('ignore')
 
 # Training settings
-parser = argparse.ArgumentParser(description='Office Classification')
+parser = argparse.ArgumentParser(description='DomainNet Classification')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=32, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=200, metavar='N', help='number of epochs to train (default: 20)')
@@ -27,12 +27,12 @@ parser.add_argument('--seed', type=int, default=1, metavar='S', help='random see
 parser.add_argument('--log-interval', type=int, default=100, metavar='N',help='how many batches to wait before logging training status')
 parser.add_argument('--num_k', type=int, default=4, metavar='K', help='how many steps to repeat the generator update')
 parser.add_argument('--num_layer', type=int, default=2, metavar='K', help='how many layers for classifier')
-parser.add_argument('--train_path', type=str, default='dataset/office/amazon/images', metavar='B',
+parser.add_argument('--train_path', type=str, default='/home/dzk/DomainNet/', metavar='B',
                     help='directory of source datasets')
-parser.add_argument('--val_path', type=str, default='dataset/office/dslr/images', metavar='B',
+parser.add_argument('--val_path', type=str, default='/home/dzk/DomainNet/', metavar='B',
                     help='directory of target datasets')
-parser.add_argument('--class_num', type=int, default='31', metavar='B', help='The number of classes')
-parser.add_argument('--gmn_N', type=int, default='31', metavar='B', help='The number of classes to calulate gradient similarity')
+parser.add_argument('--class_num', type=int, default='345', metavar='B', help='The number of classes')
+parser.add_argument('--gmn_N', type=int, default='345', metavar='B', help='The number of classes to calulate gradient similarity')
 parser.add_argument('--resnet', type=str, default='50', metavar='B', help='which resnet 18,50,101,152,200')
 parser.add_argument('--gpu', type=int, default=0)
 
@@ -43,13 +43,13 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
-source = 'amazon'
-traget = 'webcam'
+source = 'real'
+traget = 'sketch'
 
 print(source," to ", traget)
 
-args.train_path = "/home/dzk/Dataset/office31/%s/" % source
-args.val_path = "/home/dzk/Dataset/office31/%s/" % traget
+args.train_path = "/home/dzk/DomainNet/%s/" % source
+args.val_path = "/home/dzk/DomainNet/%s/" % traget
 
 train_path = args.train_path
 val_path = args.val_path
@@ -58,51 +58,18 @@ num_layer = args.num_layer
 batch_size = args.batch_size
 lr = args.lr
 
-
-mean_std = {
-    "amazon":{
-        "mean":[0.7923, 0.7862, 0.7841],
-        "std":[0.3149, 0.3174, 0.3193]
-    },
-    "dslr":{
-        "mean":[0.4708, 0.4486, 0.4063],
-        "std":[0.2039, 0.1920, 0.1996]
-    },
-    "webcam":{
-        "mean":[0.6119, 0.6187, 0.6173],
-        "std":[0.2506, 0.2555, 0.2577]
-    }
-}
-
 data_transforms = {
     train_path: transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(),
         transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean_std[source]['mean'], mean_std[source]['std'])
-    ]),
-    val_path: transforms.Compose([
-        transforms.Resize((256, 256)),
-        #transforms.RandomHorizontalFlip(),
-        transforms.CenterCrop(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean_std[traget]['mean'], mean_std[traget]['std'])
-    ]),
-}
-
-data_transforms = {
-    train_path: transforms.Compose([
-        transforms.Resize((256, 256)),
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
     val_path: transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.RandomHorizontalFlip(),
-        transforms.RandomCrop(224),
+        transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
     ]),
@@ -130,13 +97,13 @@ train_loader = CVDataLoader()
 train_loader.initialize(dsets[train_path], dsets[val_path], batch_size, shuffle=True, drop_last=True)
 dataset = train_loader.load_data()
 test_loader = CVDataLoader()
-test_loader.initialize(dsets[train_path], dsets[val_path], batch_size, shuffle=True, drop_last=False)
+test_loader.initialize(dsets[train_path], dsets[val_path], batch_size, shuffle=False, drop_last=False)
 dataset_test = test_loader.load_data()
 
 option = 'resnet' + args.resnet
 G = ResBottle(option)
-F1 = ResClassifier(num_classes=31, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
-F2 = ResClassifier(num_classes=31, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
+F1 = ResClassifier(num_classes=345, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
+F2 = ResClassifier(num_classes=345, num_layer=num_layer, num_unit=G.output_num(), middle=1000)
 F1.apply(weights_init)
 F2.apply(weights_init)
 
@@ -167,9 +134,6 @@ def train(num_epoch):
         since = time.time()
 
         print("Obtaining target label...")
-        G.eval()
-        F1.eval()
-        F2.eval()
         mem_label = obtain_label(data_loader_T_no_shuffle, G, F1, F2, args)
         mem_label = torch.from_numpy(mem_label).cuda()
         for batch_idx, data in enumerate(dataset):
@@ -187,7 +151,6 @@ def train(num_epoch):
             if ep > start:
                 pseudo_label_t = mem_label[index_t]
 
-            #print(pseudo_label_t)
 
             if args.cuda:
                 data_s, label_s = data_s.cuda(), label_s.cuda()
@@ -212,11 +175,8 @@ def train(num_epoch):
             output_t1_s = F.softmax(output_t1)
             output_t2_s = F.softmax(output_t2)
 
-            entropy_loss = Entropy_condition(output_t1_s)
-            entropy_loss += Entropy_condition(output_t2_s)
-
-            # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
-            # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))
+            entropy_loss = Entropy_inf(output_t1_s)
+            entropy_loss += Entropy_inf(output_t2_s)
 
             if ep > start:
                 supervision_loss = criterion_w(output_t1, pseudo_label_t) + criterion_w(output_t2, pseudo_label_t)
@@ -246,11 +206,8 @@ def train(num_epoch):
             loss1 = criterion(output_s1, label_s)
             loss2 = criterion(output_s2, label_s)
 
-            entropy_loss = Entropy_condition(output_t1_s)
-            entropy_loss += Entropy_condition(output_t2_s)
-
-            # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
-            # entropy_loss -= torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
+            entropy_loss = Entropy_inf(output_t1_s)
+            entropy_loss += Entropy_inf(output_t2_s)
 
             loss_dis = discrepancy(output_t1,output_t2)
 
@@ -274,16 +231,13 @@ def train(num_epoch):
                 output_t1_s = F.softmax(output_t1)
                 output_t2_s = F.softmax(output_t2)
 
-                entropy_loss = Entropy_condition(output_t1_s)
-                entropy_loss += Entropy_condition(output_t2_s)
-
-                # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
-                # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))
+                entropy_loss = Entropy_inf(output_t1_s)
+                entropy_loss += Entropy_inf(output_t2_s)
 
                 loss_dis = discrepancy(output_t1,output_t2)
                 #print(pseudo_label_t)
                 if ep > start:
-                    gmn_loss = gradient_mathing_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
+                    gmn_loss = gradient_discrepancy_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
                 else: 
                     gmn_loss = 0
 
@@ -342,8 +296,8 @@ def test(epoch):
         epoch, test_loss, correct_add, size, 100. * float(correct_add) / size))
     avg = []
     for i in dset_classes:
-        print('\t{}: [{}/{}] ({:.6f}%)'.format(i, classes_acc[i][0], classes_acc[i][1],
-                                               100. * classes_acc[i][0] / classes_acc[i][1]))
+        # print('\t{}: [{}/{}] ({:.6f}%)'.format(i, classes_acc[i][0], classes_acc[i][1],
+        #                                        100. * classes_acc[i][0] / classes_acc[i][1]))
         avg.append(100. * float(classes_acc[i][0]) / classes_acc[i][1])
     print('\taverage:', np.average(avg))
     for i in dset_classes:

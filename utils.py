@@ -13,7 +13,6 @@ from itertools import chain
 import random
 
 
-# 获取数据集
 def digit_load(args): 
     train_bs = args.batch_size
     if args.trans == 's2m':
@@ -118,7 +117,6 @@ def office31_load(args):
     
     return dset_loaders
 
-# 初始化神经网络权重
 def init_weights_orthogonal(m):
     if type(m) == nn.Conv2d:
         nn.init.orthogonal_(m.weight)
@@ -144,7 +142,7 @@ def weights_init(m):
         m.bias.data.normal_(0.0, 0.01)
 
 
-# 损失函数
+
 def discrepancy(out1, out2):
     return torch.mean(torch.abs(F.softmax(out1)- F.softmax(out2)))
 
@@ -182,7 +180,7 @@ class CrossEntropyLabelSmooth(nn.Module):
             loss = (- targets * log_probs).sum(1)
         return loss
 
-#聚类获得伪标签                                       
+# pseudo labels                                      
 def obtain_label(loader, netE, netC1, netC2, args, c=None):
     start_test = True
     netE.eval()
@@ -240,7 +238,7 @@ def obtain_label(loader, netE, netC1, netC2, args, c=None):
     return pred_label.astype('int')
 
 
-def gradient_mathing_loss(args, preds_s1,preds_s2, src_y, preds_t1, preds_t2, tgt_y, netE, netC1, netC2):
+def gradient_discrepancy_loss(args, preds_s1,preds_s2, src_y, preds_t1, preds_t2, tgt_y, netE, netC1, netC2):
     loss_w = Weighted_CrossEntropy
     loss = nn.CrossEntropyLoss()
     #CrossEntropyLabelSmooth(num_classes=args.class_num, epsilon=0.1)
@@ -336,7 +334,7 @@ def gradient_mathing_loss(args, preds_s1,preds_s2, src_y, preds_t1, preds_t2, tg
         
     return total_loss/args.gmn_N
 
-def gradient_mathing_loss_margin(args, p_s1,p_s2, s_y, p_t1, p_t2, t_y, netE, netC1, netC2):
+def gradient_discrepancy_loss_margin(args, p_s1,p_s2, s_y, p_t1, p_t2, t_y, netE, netC1, netC2):
     loss_w = Weighted_CrossEntropy
     loss = nn.CrossEntropyLoss()
     #CrossEntropyLabelSmooth(num_classes=args.class_num, epsilon=0.1)
@@ -428,7 +426,7 @@ def Entropy_condition(input_):
     entropy = torch.sum(entropy, dim=1).mean()
     return entropy 
 
-def Entropy_both(input_):
+def Entropy_inf(input_):
     return Entropy_condition(input_) + Entropy_div(input_)
 
 def Weighted_CrossEntropy(input_,labels):
