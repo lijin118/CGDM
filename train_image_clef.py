@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description='ImageClef Classification')
 parser.add_argument('--batch-size', type=int, default=32, metavar='N', help='input batch size for training (default: 64)')
 parser.add_argument('--test-batch-size', type=int, default=32, metavar='N', help='input batch size for testing (default: 1000)')
 parser.add_argument('--epochs', type=int, default=200, metavar='N', help='number of epochs to train (default: 20)')
-parser.add_argument('--lr', type=float, default=0.0003, metavar='LR', help='learning rate (default: 0.0003)')
+parser.add_argument('--lr', type=float, default=0.001, metavar='LR', help='learning rate (default: 0.0003)')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='SGD momentum (default: 0.9)')
 parser.add_argument('--optimizer', type=str, default='momentum', metavar='OP', help='the name of optimizer')
 parser.add_argument('--no-cuda', action='store_true', default=False, help='disables CUDA training')
@@ -34,7 +34,7 @@ parser.add_argument('--val_path', type=str, default='dataset/clef/p', metavar='B
 parser.add_argument('--class_num', type=int, default='12', metavar='B', help='The number of classes')
 parser.add_argument('--gmn_N', type=int, default='12', metavar='B', help='The number of classes to calulate gradient similarity')
 parser.add_argument('--resnet', type=str, default='50', metavar='B', help='which resnet 18,50,101,152,200')
-parser.add_argument('--gpu', type=int, default=0)
+parser.add_argument('--gpu', type=int, default=1)
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -43,8 +43,8 @@ torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
-source = 'c'
-traget = 'i'
+source = 'i'
+traget = 'c'
 
 print(source, " to ", traget)
 
@@ -116,7 +116,7 @@ if args.cuda:
     F1.cuda()
     F2.cuda()
 if args.optimizer == 'momentum':
-    optimizer_g = optim.SGD(list(G.parameters()), lr=args.lr/10, weight_decay=0.0005)
+    optimizer_g = optim.SGD(list(G.parameters()), lr=args.lr, weight_decay=0.0005)
     optimizer_f = optim.SGD(list(F1.parameters()) + list(F2.parameters()), momentum=0.9, lr=args.lr,
                             weight_decay=0.0005)
 elif args.optimizer == 'adam':
@@ -179,8 +179,8 @@ def train(num_epoch):
             output_t1_s = F.softmax(output_t1)
             output_t2_s = F.softmax(output_t2)
 
-            entropy_loss = Entropy_inf(output_t1_s)
-            entropy_loss += Entropy_inf(output_t2_s)
+            entropy_loss = Entropy_both(output_t1_s)
+            entropy_loss += Entropy_both(output_t2_s)
 
             # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
             # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))
@@ -191,7 +191,7 @@ def train(num_epoch):
                 supervision_loss = 0
             loss1 = criterion(output_s1, label_s)
             loss2 = criterion(output_s2, label_s)
-            all_loss = loss1 + loss2 + 0.1 * entropy_loss + 0.01 * supervision_loss
+            all_loss = loss1 + loss2 + 0.1 * entropy_loss + 0.1 * supervision_loss
             all_loss.backward()
             optimizer_g.step()
             optimizer_f.step()
@@ -213,8 +213,8 @@ def train(num_epoch):
             loss1 = criterion(output_s1, label_s)
             loss2 = criterion(output_s2, label_s)
 
-            entropy_loss = Entropy_inf(output_t1_s)
-            entropy_loss += Entropy_inf(output_t2_s)
+            entropy_loss = Entropy_both(output_t1_s)
+            entropy_loss += Entropy_both(output_t2_s)
             # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
             # entropy_loss -= torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
 
@@ -240,8 +240,8 @@ def train(num_epoch):
                 output_t1_s = F.softmax(output_t1)
                 output_t2_s = F.softmax(output_t2)
 
-                entropy_loss = Entropy_inf(output_t1_s)
-                entropy_loss += Entropy_inf(output_t2_s)
+                entropy_loss = Entropy_both(output_t1_s)
+                entropy_loss += Entropy_both(output_t2_s)
 
                 # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
                 # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))
@@ -249,7 +249,7 @@ def train(num_epoch):
                 loss_dis = discrepancy(output_t1,output_t2)
                 #print(pseudo_label_t)
                 if ep > start:
-                    gmn_loss = gradient_discrepancy_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
+                    gmn_loss = gradient_mathing_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
                 else: 
                     gmn_loss = 0
 
