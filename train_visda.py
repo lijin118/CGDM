@@ -187,8 +187,8 @@ def train(num_epoch):
             # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
             # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))
 
-            entropy_loss = Entropy_both(output_t1_s)
-            entropy_loss += Entropy_both(output_t2_s)
+            entropy_loss = Entropy(output_t1_s)
+            entropy_loss += Entropy(output_t2_s)
 
             if ep > start:
                 supervision_loss = criterion_w(output_t1, pseudo_label_t) + criterion_w(output_t2, pseudo_label_t)
@@ -218,8 +218,8 @@ def train(num_epoch):
             loss1 = criterion(output_s1, label_s)
             loss2 = criterion(output_s2, label_s)
             
-            entropy_loss = Entropy_both(output_t1_s)
-            entropy_loss += Entropy_both(output_t2_s)
+            entropy_loss = Entropy(output_t1_s)
+            entropy_loss += Entropy(output_t2_s)
             # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
             # entropy_loss -= torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
 
@@ -246,8 +246,8 @@ def train(num_epoch):
                 output_t2_s = F.softmax(output_t2)
 
                
-                entropy_loss = Entropy_both(output_t1_s)
-                entropy_loss += Entropy_both(output_t2_s)
+                entropy_loss = Entropy(output_t1_s)
+                entropy_loss += Entropy(output_t2_s)
                
                 # entropy_loss = - torch.mean(torch.log(torch.mean(output_t1_s, 0) + 1e-6))
                 # entropy_loss -= torch.mean(torch.log(torch.mean(output_t2_s, 0) + 1e-6))

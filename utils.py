@@ -426,7 +426,7 @@ def Entropy_condition(input_):
     entropy = torch.sum(entropy, dim=1).mean()
     return entropy 
 
-def Entropy_inf(input_):
+def Entropy(input_):
     return Entropy_condition(input_) + Entropy_div(input_)
 
 def Weighted_CrossEntropy(input_,labels):
