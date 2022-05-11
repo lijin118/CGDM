@@ -112,7 +112,7 @@ if args.cuda:
     F1.cuda()
     F2.cuda()
 if args.optimizer == 'momentum':
-    optimizer_g = optim.SGD(list(G.features.parameters()), lr=args.lr/10, weight_decay=0.0005)
+    optimizer_g = optim.SGD(list(G.features.parameters()), lr=args.lr, weight_decay=0.0005)
     optimizer_f = optim.SGD(list(F1.parameters()) + list(F2.parameters()), momentum=0.9, lr=args.lr,
                             weight_decay=0.0005)
 elif args.optimizer == 'adam':
@@ -175,8 +175,8 @@ def train(num_epoch):
             output_t1_s = F.softmax(output_t1)
             output_t2_s = F.softmax(output_t2)
 
-            entropy_loss = Entropy_inf(output_t1_s)
-            entropy_loss += Entropy_inf(output_t2_s)
+            entropy_loss = Entropy(output_t1_s)
+            entropy_loss += Entropy(output_t2_s)
 
             if ep > start:
                 supervision_loss = criterion_w(output_t1, pseudo_label_t) + criterion_w(output_t2, pseudo_label_t)
@@ -206,8 +206,8 @@ def train(num_epoch):
             loss1 = criterion(output_s1, label_s)
             loss2 = criterion(output_s2, label_s)
 
-            entropy_loss = Entropy_inf(output_t1_s)
-            entropy_loss += Entropy_inf(output_t2_s)
+            entropy_loss = Entropy(output_t1_s)
+            entropy_loss += Entropy(output_t2_s)
 
             loss_dis = discrepancy(output_t1,output_t2)
 
@@ -231,8 +231,8 @@ def train(num_epoch):
                 output_t1_s = F.softmax(output_t1)
                 output_t2_s = F.softmax(output_t2)
 
-                entropy_loss = Entropy_inf(output_t1_s)
-                entropy_loss += Entropy_inf(output_t2_s)
+                entropy_loss = Entropy(output_t1_s)
+                entropy_loss += Entropy(output_t2_s)
 
                 loss_dis = discrepancy(output_t1,output_t2)
                 #print(pseudo_label_t)

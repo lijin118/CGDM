@@ -255,7 +255,7 @@ def train(num_epoch):
                 loss_dis = discrepancy(output_t1,output_t2)
                 #print(pseudo_label_t)
                 if ep > start:
-                    gmn_loss = gradient_mathing_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
+                    gmn_loss = gradient_discrepancy_loss_margin(args, output_s1,output_s2, label_s, output_t1, output_t2, pseudo_label_t, G, F1, F2)
                 else: 
                     gmn_loss = 0
 
